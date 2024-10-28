@@ -1,147 +1,165 @@
-import { html } from 'lit-html';
-import { component, useState } from 'haunted';
+import { html, component, useState } from 'haunted';
 
 function CocktailList({ cocktails }) {
-  const getIngredients = (cocktail) => {
-    const ingredients = [];
-    for (let i = 1; i <= 15; i++) {
-      const ingredient = cocktail[`strIngredient${i}`];
-      if (ingredient) {
-        ingredients.push(ingredient);
-      }
-    }
-    return ingredients;
-  };
+    const [expandedCards, setExpandedCards] = useState(new Set());
 
-  const MAX_TEXT_LENGTH = 170;
+    const addToList = (ingredients) => {
+        this.dispatchEvent(new CustomEvent('add-to-list', { detail: ingredients }));
+    };
 
-  return html`
-    <style>
-      .cocktail-list {
-        display: grid;
-        grid-template-columns: repeat(2, 3fr);
-        gap: 24px;
-        max-width: 700px;
-        margin: 0 auto;
-      }
+    const toggleInstructions = (id) => {
+        const newExpanded = new Set(expandedCards);
+        if (expandedCards.has(id)) {
+            newExpanded.delete(id);
+        } else {
+            newExpanded.add(id);
+        }
+        setExpandedCards(newExpanded);
+    };
 
-      .cocktail-item {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        background: #ffffff;
-        border-radius: 3px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s, box-shadow 0.2s;
-        padding: 12px;
-        width: 90%;
-        margin-right: 74px;
-        margin-bottom: 16px;
-      }
+    return html`
+        <style>
+            .cocktail-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 2rem;
+                padding: 2rem;
+            }
+            .cocktail-card {
+                background-color: #ffffff;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+                display: flex;
+                flex-direction: column;
+            }
+            .cocktail-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            }
+            .cocktail-image {
+                width: 100%;
+                height: 200px;
+                object-fit: cover;
+            }
+            .cocktail-details {
+                padding: 1.5rem;
+                flex-grow: 1;
+                display: flex;
+                flex-direction: column;
+            }
+            .cocktail-name {
+                margin: 0 0 1rem;
+                font-size: 1.4rem;
+                color: #2D3250;
+                font-weight: 600;
+            }
+            .instructions-container {
+                margin-bottom: 1rem;
+                flex-grow: 1;
+            }
+            .instructions-text {
+                font-size: 0.95rem;
+                color: #4A4A4A;
+                line-height: 1.6;
+                margin: 0;
+                transition: all 0.3s ease;
+            }
+            .instructions-collapsed {
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+            .show-more-btn {
+                background: none;
+                border: none;
+                color: #7077A1;
+                cursor: pointer;
+                font-size: 0.9rem;
+                padding: 0.5rem 0;
+                text-decoration: underline;
+                margin-top: 0.5rem;
+            }
+            .show-more-btn:hover {
+                color: #5a6084;
+            }
+            .add-to-list-btn {
+                background-color: #7077A1;
+                color: white;
+                border: none;
+                padding: 0.75rem 1rem;
+                border-radius: 6px;
+                cursor: pointer;
+                width: 100%;
+                font-size: 1rem;
+                transition: background-color 0.3s ease;
+                margin-top: auto;
+            }
+            .add-to-list-btn:hover {
+                background-color: #5a6084;
+            }
+            .ingredients-preview {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                margin: 1rem 0;
+            }
+            .ingredient-tag {
+                background-color: #F0F2F5;
+                color: #2D3250;
+                padding: 0.3rem 0.8rem;
+                border-radius: 16px;
+                font-size: 0.85rem;
+            }
+        </style>
+<div class="cocktail-grid">
+            ${cocktails.map(cocktail => {
+                const ingredients = Object.keys(cocktail)
+                    .filter(key => key.startsWith('strIngredient') && cocktail[key])
+                    .map(key => ({
+                        ingredient: cocktail[key],
+                        measure: cocktail[`strMeasure${key.slice(-1)}`] || 'as needed'
+                    }));
+                
+                const isExpanded = expandedCards.has(cocktail.idDrink);
 
-      .cocktail-item:hover {
-        transform: scale(1.02);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-      }
+                return html`
+                    <div class="cocktail-card">
+                        <img class="cocktail-image" src="${cocktail.strDrinkThumb}" alt="${cocktail.strDrink}">
+                        <div class="cocktail-details">
+                            <h3 class="cocktail-name">${cocktail.strDrink}</h3>
+                            
+                            <div class="ingredients-preview">
+                                ${ingredients.slice(0, 3).map(item => html`
+                                    <span class="ingredient-tag">${item.ingredient} (${item.measure})</span>
+                                `)}
+                                ${ingredients.length > 3 ? html`
+                                    <span class="ingredient-tag">+${ingredients.length - 3} more</span>
+                                ` : ''}
+                            </div>
 
-      .cocktail-item img {
-        width: 100%;
-        height: auto;
-        object-fit: cover;
-        border-radius: 4px;
-      }
+                            <div class="instructions-container">
+                                <p class="instructions-text ${isExpanded ? '' : 'instructions-collapsed'}">
+                                    ${cocktail.strInstructions}
+                                </p>
+                                ${cocktail.strInstructions.length > 150 ? html`
+                                    <button class="show-more-btn" @click=${() => toggleInstructions(cocktail.idDrink)}>
+                                        ${isExpanded ? 'Show less' : 'Show more'}
+                                    </button>
+                                ` : ''}
+                            </div>
 
-      .cocktail-item h3 {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #2D3250;
-        margin: 4px 0;
-      }
-
-      .cocktail-item p {
-        font-size: 0.75rem;
-        color: #424769;
-        margin: 4px 0;
-        transition: max-height 0.2s ease-in-out, opacity 0.2s ease-in-out;
-        overflow: hidden;
-        opacity: 1;
-        max-height: 3em;
-        flex-grow: 1;
-      }
-
-      .cocktail-item p.expanded {
-        max-height: 100em;
-        opacity: 1;
-      }
-
-      .cocktail-item button {
-        background: #7077A1;
-        color: #ffffff;
-        padding: 6px 10px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.2s;
-        margin-left: auto;
-        flex-shrink: 0;
-        font-size: 0.75rem;
-      }
-
-      .cocktail-item button:hover {
-        background: #5b5f8d;
-      }
-
-      .toggle-button {
-        background: transparent;
-        color: #2D3250;
-        border: none;
-        cursor: pointer;
-        text-decoration: underline;
-        margin-top: 4px;
-        font-size: 0.75rem;
-      }
-
-      .add-to-list-button {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        margin-top: 8px;
-      }
-
-      .add-to-list-button svg {
-        width: 20px;
-        height: 20px;
-      }
-    </style>
-    
-    <div class="cocktail-list">
-      ${cocktails.map(cocktail => {
-        const [expanded, setExpanded] = useState(false);
-        const isLongText = cocktail.strInstructions.length > MAX_TEXT_LENGTH;
-
-        return html`
-          <div class="cocktail-item">
-            <img src="${cocktail.strDrinkThumb}/preview" alt="${cocktail.strDrink}">
-            <h3>${cocktail.strDrink}</h3>
-            <p class=${expanded ? 'expanded' : ''}>
-              ${cocktail.strInstructions}
-            </p>
-            ${isLongText
-              ? html`
-                  <button class="toggle-button" @click=${() => setExpanded(!expanded)}>
-                    ${expanded ? 'Show Less' : 'Show More'}
-                  </button>`
-              : ''}
-            <button class="add-to-list-button" @click=${() => this.dispatchEvent(new CustomEvent('add-to-list', { detail: getIngredients(cocktail) }))} aria-label="Add to Shopping List">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-          </div>
-        `;
-      })}
-    </div>
-  `;
+                            <button class="add-to-list-btn" @click=${() => addToList(ingredients)}>
+                                Add to Shopping List
+                            </button>
+                        </div>
+                    </div>
+                `;
+            })}
+        </div>
+    `;
 }
 
 customElements.define('cocktail-list', component(CocktailList));

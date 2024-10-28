@@ -1,8 +1,20 @@
-import { html } from 'lit-html';
-import { component } from 'haunted';
+import { html, component } from 'haunted';
 
-function ShoppingList({ items }) {
-    const printShoppingList = () => {
+function ShoppingList({ items, isOpen }) {
+    const removeItem = (ingredient) => {
+        this.dispatchEvent(new CustomEvent('remove-item', { detail: ingredient }));
+    };
+
+    const close = () => {
+        this.dispatchEvent(new CustomEvent('close'));
+    };
+
+    const clearAll = () => {
+        // Dispatching a custom event to clear the items
+        this.dispatchEvent(new CustomEvent('clear-all'));
+    };
+
+    const printList = () => {
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
@@ -11,122 +23,181 @@ function ShoppingList({ items }) {
                     <style>
                         body {
                             font-family: Arial, sans-serif;
-                            margin: 0;
                             padding: 20px;
                         }
-                        h2 {
+                        h1 {
                             color: #2D3250;
-                            margin-bottom: 20px;
                         }
-                        ul {
-                            list-style-type: none;
-                            padding: 0;
-                        }
-                        li {
-                            margin: 8px 0;
-                            display: flex;
-                            justify-content: space-between;
+                        .item {
+                            margin: 10px 0;
                         }
                     </style>
                 </head>
                 <body>
-                    <h2>Shopping List</h2>
+                    <h1>Shopping List</h1>
                     <ul>
-                        ${items.map(item => `<li>${item.ingredient} - Quantity: ${item.quantity}</li>`).join('')}
+                        ${items.map(({ ingredient, measure }) => `
+                            <li class="item">${ingredient} ${measure ? `- ${measure}` : ''}</li>
+                        `).join('')}
                     </ul>
                 </body>
             </html>
         `);
         printWindow.document.close();
-        printWindow.focus();
         printWindow.print();
-        printWindow.close();
     };
 
     return html`
         <style>
             .shopping-list {
-                background: #ffffff; 
-                border-radius: 12px; 
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); 
-                padding: 24px; 
-                min-width: 320px; 
-                max-width: 400px; 
-                margin-left: 20px; 
-                position: sticky; 
-                top: 20px; 
-                z-index: 10; 
-                transition: transform 0.2s; 
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 380px;
+                height: 100vh;
+                background-color: #ffffff;
+                box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+                transform: translateX(100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
             }
-            .shopping-list h2 {
-                font-size: 1.75rem; 
-                color: #2D3250; 
-                margin-bottom: 16px; 
-                font-weight: 600; 
+            .shopping-list.open {
+                transform: translateX(0);
             }
-            .shopping-list ul {
-                list-style-type: none; 
-                padding: 0; 
-                margin: 0; 
+            .shopping-list-header {
+                background-color: #7077A1;
+                color: white;
+                padding: 1.5rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
             }
-            .shopping-list li {
-                display: flex; 
-                justify-content: space-between; 
-                align-items: center; 
-                padding: 12px 0; 
-                border-bottom: 1px solid #e5e5e5; 
-                transition: background-color 0.3s; 
+            .header-content {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
             }
-            .shopping-list li:hover {
-                background-color: #f5f5f5; 
+            .shopping-list-title {
+                margin: 0;
+                font-size: 1.4rem;
+                font-weight: 600;
             }
-            .shopping-list button {
-                background: #2D3250; 
-                color: #ffffff; 
-                border: none; 
-                border-radius: 8px; 
-                padding: 6px 12px; 
-                cursor: pointer; 
-                font-weight: bold; 
-                transition: background-color 0.2s, transform 0.2s; 
+            .item-count {
+                background-color: #ffffff;
+                color: #7077A1;
+                padding: 0.25rem 0.75rem;
+                border-radius: 16px;
+                font-size: 0.9rem;
+                font-weight: 500;
             }
-            .shopping-list button:hover {
-                background: #e65c50; 
-                transform: scale(1.05); 
+            .shopping-list-content {
+                flex-grow: 1;
+                overflow-y: auto;
+                padding: 1.5rem;
             }
-            .print-button {
-                background: #2D3250; 
-                color: #ffffff; 
-                border: none; 
-                border-radius: 8px; 
-                padding: 10px 20px; 
-                cursor: pointer; 
-                font-weight: bold; 
-                text-align: center; 
-                margin-top: 16px; 
-                width: 100%; 
-                transition: background-color 0.2s, transform 0.2s; 
+            .shopping-list-item {
+                background-color: #F0F2F5;
+                border-radius: 8px;
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
             }
-            .print-button:hover {
-                background: #45a049; 
-                transform: scale(1.05); 
+            .item-details {
+                flex-grow: 1;
+            }
+            .item-name {
+                font-weight: 500;
+                color: #2D3250;
+                margin-bottom: 0.25rem;
+            }
+            .item-measure {
+                font-size: 0.9rem;
+                color: #666;
+            }
+            .remove-item {
+                background-color: #ff4d4d;
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 32px;
+                height: 32px;
+                font-size: 1.2rem;
+                cursor: pointer;
+            }
+            .list-actions {
+                padding: 1rem;
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .clear-all-btn, .print-btn {
+                background-color: #F0F2F5;
+                color: #7077A1;
+                border: none;
+                padding: 0.75rem 1.5rem;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 0.9rem;
+                width: 100%;
+                transition: background-color 0.3s ease;
+            }
+            .clear-all-btn:hover, .print-btn:hover {
+                background-color: #e6e6e6;
+            }
+            @media (max-width: 480px) {
+                .shopping-list {
+                    width: 100%;
+                }
             }
         </style>
-        <div class="shopping-list">
-            <h2>Shopping List</h2>
-            <ul>
-                ${items.map(item => html`
-                    <li>
-                        ${item.ingredient} - Quantity: ${item.quantity}
-                        <button @click=${() => this.dispatchEvent(new CustomEvent('remove-item', { detail: item.ingredient }))}>
-                            &times;
-                        </button>
-                    </li>
-                `)}
-            </ul>
-            <button @click=${printShoppingList} class="print-button">
-                Print Shopping List
-            </button>
+
+        <div class="shopping-list ${isOpen ? 'open' : ''}">
+            <div class="shopping-list-header">
+                <div class="header-content">
+                    <h2 class="shopping-list-title">Shopping List</h2>
+                    <span class="item-count">${items.length}</span>
+                </div>
+                <button class="close-button" @click=${close}>&times;</button>
+            </div>
+
+            <div class="shopping-list-content">
+                ${items.length === 0
+                    ? html`
+                        <div class="empty-list">
+                            <span class="empty-icon">🛒</span>
+                            <p>Your shopping list is empty.</p>
+                            <p>Add ingredients from cocktail recipes!</p>
+                        </div>
+                    `
+                    : html`
+                        ${items.map(({ ingredient, measure }) => html`
+                            <div class="shopping-list-item">
+                                <div class="item-details">
+                                    <div class="item-name">${ingredient}</div>
+                                    <div class="item-measure">${measure || 'as needed'}</div>
+                                </div>
+                                <button class="remove-item" @click=${() => removeItem(ingredient)}>
+                                    &times;
+                                </button>
+                            </div>
+                        `)}
+                    `}
+            </div>
+
+            ${items.length > 0 ? html`
+                <div class="list-actions">
+                    <button class="clear-all-btn" @click=${clearAll}>
+                        Clear All Items
+                    </button>
+                    <button class="print-btn" @click=${printList}>
+                        Print Shopping List
+                    </button>
+                </div>
+            ` : ''}
         </div>
     `;
 }
